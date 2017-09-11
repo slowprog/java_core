@@ -1,7 +1,7 @@
-package com.company;
+package com.client;
 
 public class Main {
     public static void main(String[] args) {
-        System.out.println("Main");
+        ChatWindow chatWindow = new ChatWindow();
     }
 }
