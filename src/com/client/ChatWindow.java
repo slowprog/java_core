@@ -19,30 +19,39 @@ public class ChatWindow extends JFrame {
     private DataOutputStream out;
 
     private JPanel bottomPanel, upperPanel;
+    private JTextField textField;
+    private JTextArea textArea;
 
     private boolean isAuthorized;
+    private String name;
 
     public void setAuthorized(boolean isAuthorized) {
         this.isAuthorized = isAuthorized;
 
         upperPanel.setVisible(!this.isAuthorized);
         bottomPanel.setVisible(this.isAuthorized);
+
+        if (this.isAuthorized) {
+            setTitle("Чат: " + this.name);
+            this.textField.requestFocus();
+        } else {
+            setTitle("Чат не авторизован");
+        }
     }
 
     public ChatWindow() {
-        setTitle("Мессенджер");
         setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
-        setBounds(200, 400, 400, 400);
+        setBounds(200, 400, 400, 200);
         setResizable(true);
         setLayout(new BorderLayout());
 
-        JTextField textField = new JTextField();
+        this.textField = new JTextField();
         JButton buttonSend = new JButton("Послать");
 
         bottomPanel = new JPanel();
         bottomPanel.setLayout(new BorderLayout());
 
-        bottomPanel.add(textField, BorderLayout.CENTER);
+        bottomPanel.add(this.textField, BorderLayout.CENTER);
         bottomPanel.add(buttonSend, BorderLayout.EAST);
 
         upperPanel = new JPanel(new GridLayout(1,3));
@@ -57,7 +66,11 @@ public class ChatWindow extends JFrame {
             @Override
             public void actionPerformed(ActionEvent e) {
                 try {
-                    out.writeUTF("/auth " + jtfLogin.getText() + " " + jtfPass.getText());
+                    String passText = new String(jtfPass.getPassword());
+
+                    out.writeUTF("/auth " + jtfLogin.getText() + " " + passText);
+                    jtfLogin.setText("");
+                    jtfPass.setText("");
                 } catch (IOException e1) {
                     e1.printStackTrace();
                 }
@@ -66,7 +79,7 @@ public class ChatWindow extends JFrame {
             }
         });
 
-        JTextArea textArea = new JTextArea();
+        textArea = new JTextArea();
 
         textArea.setBackground(Color.lightGray);
         textArea.setEditable(false);
@@ -77,17 +90,17 @@ public class ChatWindow extends JFrame {
         add(scrollPane, BorderLayout.CENTER);
         add(bottomPanel, BorderLayout.SOUTH);
 
-        textField.addActionListener(new ActionListener() {
+        this.textField.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                ChatWindow.this.sendMessage(textField, textArea);
+                ChatWindow.this.sendMessage();
             }
         });
 
         buttonSend.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                ChatWindow.this.sendMessage(textField, textArea);
+                ChatWindow.this.sendMessage();
             }
         });
 
@@ -103,35 +116,60 @@ public class ChatWindow extends JFrame {
             @Override
             public void run() {
                 try {
+                    // Цикл для повторного подключения, после отключения
                     while (true) {
-                        String msg = in.readUTF();
-                        if (msg.equals("/authok")) {
-                            setAuthorized(true);
-                            break;
+                        // Цикл для принятия ответа об авторизации
+                        while (true) {
+                            String msg = in.readUTF();
+                            if (msg.startsWith("/authok")) {
+                                String[] elements = msg.split(" ");
+                                ChatWindow.this.name = elements[1];
+
+                                setAuthorized(true);
+
+                                break;
+                            }
+
+                            ChatWindow.this.textArea.append(msg + "\n");
+                            ChatWindow.this.textArea.setCaretPosition(ChatWindow.this.textArea.getDocument().getLength());
                         }
 
-                        textArea.append(msg + "\n");
-                        textArea.setCaretPosition(textArea.getDocument().getLength());
-                    }
+                        // Цикл для принятия сообщений
+                        while (true) {
+                            String msg = in.readUTF();
 
-                    while (true) {
-                        String msg = in.readUTF();
-                        if (!msg.isEmpty()) {
-                            textArea.append(msg + "\n");
+                            if (msg.equalsIgnoreCase("/end")) {
+                                break;
+                            }
+
+                            if (!msg.isEmpty()) {
+                                ChatWindow.this.textArea.append(msg + "\n");
+                            }
+                            ChatWindow.this.textArea.setCaretPosition(ChatWindow.this.textArea.getDocument().getLength());
                         }
-                        textArea.setCaretPosition(textArea.getDocument().getLength());
+
+                        setAuthorized(false);
                     }
                 } catch (IOException e) {
                     e.printStackTrace();
+                } finally {
+                    try {
+                        socket.close();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+
                     setAuthorized(false);
                 }
             }
         });
 
+        setAuthorized(false);
+
+        t1.setDaemon(true);
         t1.start();
 
         setVisible(true);
-        setAuthorized(false);
 
         addWindowListener(new WindowAdapter() {
             @Override
@@ -149,14 +187,14 @@ public class ChatWindow extends JFrame {
         });
     }
 
-    private void sendMessage(JTextField textField, JTextArea textArea) {
-        String msg = textField.getText();
+    private void sendMessage() {
+        String msg = this.textField.getText();
 
         if (msg.isEmpty()) {
             return;
         }
 
-        textField.setText("");
+        this.textField.setText("");
 
         try {
             out.writeUTF(msg);

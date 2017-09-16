@@ -1,6 +1,5 @@
 package com.server;
 
-import javax.xml.crypto.Data;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -19,46 +18,73 @@ public class ClientHandler {
             this.in = new DataInputStream(socket.getInputStream());
             this.out = new DataOutputStream(socket.getOutputStream());
             this.server = server;
+            this.name = "";
         } catch (IOException e) {
             e.printStackTrace();
         }
 
         new Thread(() -> {
             try {
-                // Авторизация клиента по логину / паролю
+                // Основной цикл для повторных авторизаций
                 while (true) {
-                    String str = in.readUTF();
+                    // Авторизация клиента по логину / паролю
+                    while (true) {
+                        String str = in.readUTF();
 
-                    if (str.startsWith("/auth")) {
-                        String[] elements = str.split(" ");
-                        if (elements.length == 3 && elements[1].equals("login") && elements[2].equals("pass")) {
-                            sendMessage("/authok");
+                        if (str.startsWith("/auth ")) {
+                            String[] elements = str.split(" ");
 
-                            this.name = "client";
+                            if (elements.length == 3) {
+                                String nick = server.getAuthService().getNickByLoginPass(elements[1], elements[2]);
+                                if (nick != null) {
+                                    if (!server.isNickBusy(nick)) {
+                                        sendMessage("/authok " + nick);
+
+                                        this.name = nick;
+
+                                        setAuthorized(true);
+
+                                        break;
+                                    } else {
+                                        sendMessage("Учётная запись уже используется");
+                                    }
+                                } else {
+                                    sendMessage("Неверный логин / пароль");
+                                }
+                            } else {
+                                sendMessage("Неверное кол-во параметров для авторизации");
+                            }
+                        } else {
+                            sendMessage("Для начала нужна авторизация");
+                        }
+                    }
+
+                    while (true) {
+                        String str = in.readUTF();
+
+                        if (str.equalsIgnoreCase("/end")) {
+                            server.broadcast(str, name);
 
                             break;
-                        } else {
-                            sendMessage("Неверный логин / пароль");
                         }
-                    } else {
-                        sendMessage("Для начала нужна авторизация");
-                    }
-                }
 
-                while (true) {
-                    String str = in.readUTF();
-                    if (str.equalsIgnoreCase("/end")) {
-                        break;
+                        System.out.println("Client " + name + ": " + str);
+
+                        if (str.startsWith("/w ")) {
+                            String[] elements = str.split(" ");
+
+                            server.broadcast(name + " -> " + elements[1] + " (DM): " + elements[2], name, elements[1]);
+                        } else {
+                            server.broadcast(name + ": " + str);
+                        }
                     }
 
-                    System.out.println("Client: " + str);
-                    // sendMessage("str: " + str);
-                    server.broadcast(str);
+                    setAuthorized(false);
                 }
             } catch (IOException e) {
-                e.printStackTrace();
+                // e.printStackTrace();
             } finally {
-                server.unsubscribeMe(this);
+                setAuthorized(false);
 
                 try {
                     socket.close();
@@ -80,5 +106,15 @@ public class ClientHandler {
 
     public String getName() {
         return name;
+    }
+
+    private void setAuthorized(boolean isAuthorized) {
+        if (isAuthorized) {
+            server.subscribe(this);
+            server.broadcast("Пользователь " + name + " зашёл в чат");
+        } else {
+            server.unsubscribe(this);
+            server.broadcast("Пользователь " + name + " вышел из чата");
+        }
     }
 }
