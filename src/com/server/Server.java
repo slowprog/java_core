@@ -89,4 +89,16 @@ public class Server {
     public IAuthService getAuthService() {
         return this.authService;
     }
+
+    public void broadcastUserList() {
+        StringBuffer sb = new StringBuffer("/userlist");
+
+        for (ClientHandler client: clients) {
+            sb.append(" " + client.getName());
+        }
+
+        for (ClientHandler client: clients) {
+            client.sendMessage(sb.toString());
+        }
+    }
 }

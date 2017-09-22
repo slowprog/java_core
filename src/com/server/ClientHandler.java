@@ -112,9 +112,11 @@ public class ClientHandler {
         if (isAuthorized) {
             server.subscribe(this);
             server.broadcast("Пользователь " + name + " зашёл в чат");
+            server.broadcastUserList();
         } else {
             server.unsubscribe(this);
             server.broadcast("Пользователь " + name + " вышел из чата");
+            server.broadcastUserList();
         }
     }
 }

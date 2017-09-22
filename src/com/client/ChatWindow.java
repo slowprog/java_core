@@ -21,6 +21,8 @@ public class ChatWindow extends JFrame {
     private JPanel bottomPanel, upperPanel;
     private JTextField textField;
     private JTextArea textArea;
+    private JTextArea jtaUsers;
+    private JScrollPane jspUsers;
 
     private boolean isAuthorized;
     private String name;
@@ -30,6 +32,7 @@ public class ChatWindow extends JFrame {
 
         upperPanel.setVisible(!this.isAuthorized);
         bottomPanel.setVisible(this.isAuthorized);
+        jspUsers.setVisible(this.isAuthorized);
 
         if (this.isAuthorized) {
             setTitle("Чат: " + this.name);
@@ -86,9 +89,16 @@ public class ChatWindow extends JFrame {
 
         JScrollPane scrollPane = new JScrollPane(textArea);
 
+        jtaUsers = new JTextArea();
+        jtaUsers.setPreferredSize(new Dimension(150, 150));
+        jtaUsers.setEditable(false);
+
+        jspUsers = new JScrollPane(jtaUsers);
+
         add(upperPanel, BorderLayout.NORTH);
         add(scrollPane, BorderLayout.CENTER);
         add(bottomPanel, BorderLayout.SOUTH);
+        add(jspUsers, BorderLayout.EAST);
 
         this.textField.addActionListener(new ActionListener() {
             @Override
@@ -128,24 +138,36 @@ public class ChatWindow extends JFrame {
                                 setAuthorized(true);
 
                                 break;
+                            } else if (msg.startsWith("/userlist")) {
+                                // ...
+                            } else {
+                                ChatWindow.this.textArea.append(msg + "\n");
+                                ChatWindow.this.textArea.setCaretPosition(ChatWindow.this.textArea.getDocument().getLength());
                             }
-
-                            ChatWindow.this.textArea.append(msg + "\n");
-                            ChatWindow.this.textArea.setCaretPosition(ChatWindow.this.textArea.getDocument().getLength());
                         }
 
                         // Цикл для принятия сообщений
                         while (true) {
                             String msg = in.readUTF();
 
-                            if (msg.equalsIgnoreCase("/end")) {
-                                break;
-                            }
+                            if (msg.startsWith("/")) {
+                                if (msg.equalsIgnoreCase("/end")) {
+                                    break;
+                                } else if (msg.startsWith("/userlist")) {
+                                    String[] users = msg.split(" ");
+                                    jtaUsers.setText("");
 
-                            if (!msg.isEmpty()) {
-                                ChatWindow.this.textArea.append(msg + "\n");
+                                    for (int i = 1; i < users.length; i++) {
+                                        jtaUsers.append(users[i] + "\n");
+                                    }
+                                }
+
+                            } else {
+                                if (!msg.isEmpty()) {
+                                    ChatWindow.this.textArea.append(msg + "\n");
+                                }
+                                ChatWindow.this.textArea.setCaretPosition(ChatWindow.this.textArea.getDocument().getLength());
                             }
-                            ChatWindow.this.textArea.setCaretPosition(ChatWindow.this.textArea.getDocument().getLength());
                         }
 
                         setAuthorized(false);
