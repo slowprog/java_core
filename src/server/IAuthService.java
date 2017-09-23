@@ -1,4 +1,4 @@
-package com.server;
+package server;
 
 public interface IAuthService {
     void start();

@@ -1,4 +1,4 @@
-package com.server;
+package server;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -46,16 +46,16 @@ public class ClientHandler {
 
                                         break;
                                     } else {
-                                        sendMessage("Учётная запись уже используется");
+                                        sendMessage("/authfail Учётная запись уже используется");
                                     }
                                 } else {
-                                    sendMessage("Неверный логин / пароль");
+                                    sendMessage("/authfail Неверный логин / пароль");
                                 }
                             } else {
-                                sendMessage("Неверное кол-во параметров для авторизации");
+                                sendMessage("/authfail Неверное кол-во параметров");
                             }
                         } else {
-                            sendMessage("Для начала нужна авторизация");
+                            sendMessage("/authfail Для начала нужна авторизация");
                         }
                     }
 
@@ -75,7 +75,7 @@ public class ClientHandler {
 
                             server.broadcast(name + " -> " + elements[1] + " (DM): " + elements[2], name, elements[1]);
                         } else {
-                            server.broadcast(name + ": " + str);
+                            server.broadcast(name + " : " + str);
                         }
                     }
 
@@ -111,12 +111,18 @@ public class ClientHandler {
     private void setAuthorized(boolean isAuthorized) {
         if (isAuthorized) {
             server.subscribe(this);
-            server.broadcast("Пользователь " + name + " зашёл в чат");
-            server.broadcastUserList();
+
+            if (!name.isEmpty()) {
+                server.broadcast("Пользователь " + name + " зашёл в чат");
+                server.broadcastUserList();
+            }
         } else {
             server.unsubscribe(this);
-            server.broadcast("Пользователь " + name + " вышел из чата");
-            server.broadcastUserList();
+
+            if (!name.isEmpty()) {
+                server.broadcast("Пользователь " + name + " вышел из чата");
+                server.broadcastUserList();
+            }
         }
     }
 }
